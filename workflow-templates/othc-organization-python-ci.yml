@@ -1,0 +1,16 @@
+name: OTHC Organization Python CI
+
+on:
+  push:
+    branches: [ $default-branch ]
+  pull_request:
+    branches: [ $default-branch ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Check Shared Actions
+        run: echo hello from the shared action
+
