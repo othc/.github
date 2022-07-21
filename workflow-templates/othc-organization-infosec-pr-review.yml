@@ -1,0 +1,66 @@
+name: InfoSec Checks
+on:
+  pull_request:
+    branches: [ master ]
+jobs:
+  build:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - uses: actions/checkout@v2 
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@v1.1.0
+        env:
+          SONAR_HOST_URL: ${{ secrets.SONARQUBE_HOST }}
+          SONAR_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
+        with:
+          args: >           
+            -Dsonar.projectBaseDir=.
+            -Dsonar.sources=.
+            -Dsonar.projectKey=${{ github.event.pull_request.head.repo.name }}
+
+      - name: Cleanup SonarQube Scan Files
+        run: |
+          sudo rm -rf .scannerwork
+
+      - name: Nexus IQ Policy Evaluation
+        uses: sonatype-nexus-community/iq-github-action@master
+        with:
+          serverUrl: https://nexus-iq.eng.trueaccord.com
+          username: jenkins_nexusiq
+          password: ${{ secrets.nexusiq_password }}
+          applicationId: ${{ github.event.pull_request.head.repo.name }}
+          stage: Source
+          target: .
+
+      - name: Jira Login
+        uses: atlassian/gajira-login@master
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: Create
+        id: create
+        uses: atlassian/gajira-create@master
+        with:
+          project: INFSC
+          issuetype: Task
+          summary: |
+            PR Review ${{ github.event.pull_request.html_url }}
+          description: |
+              Actor: ${{ github.actor }}
+              Repository: ${{ github.repository }}
+              Event: ${{ github.event_name }}
+              PR: ${{ github.event.pull_request.html_url }}
+              Diff: ${{ github.event.pull_request.html_url }}/files
+
+      - name: Log created issue
+        run: echo "Issue ${{ steps.create.outputs.issue }} was created"
+
+      - name: Comment PR
+        uses: thollander/actions-comment-pull-request@v1
+        with:
+          message: |
+            :bangbang: PR ${{ github.event.pull_request.html_url }} In-Review with InfoSec team :mag: :bangbang:
+            Please watch Jira ticket [${{ steps.create.outputs.issue }}](https://trueaccord.atlassian.net/browse/${{ steps.create.outputs.issue }}) for the result.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
