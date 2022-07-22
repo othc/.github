@@ -1,9 +1,35 @@
 name: InfoSec Checks
 on:
+  workflow_call:
+    secrets:
+      SONARQUBE_HOST:
+        description: SonarQube Internal Host
+        required: true
+      SONARQUBE_TOKEN:
+        description: SonarQube Token
+        required: true
+      NEXUSIQ_HOST:
+        description: NexusIQ Internal Host
+        required: true
+      NEXUSIQ_USERNAME:
+        description: NexusIQ Username
+        required: true
+      NEXUSIQ_PASSWORD:
+        description: NexusIQ Password
+        required: true
+      JIRA_BASE_URL:
+        description: Jira Base Url
+        required: true
+      JIRA_USER_EMAIL:
+        description: Jira SA Email
+        required: true
+      JIRA_API_TOKEN:
+        description: Jira API Token
+        required: true
   pull_request:
     branches: [ master ]
 jobs:
-  build:
+  infosec-checks:
     runs-on: [self-hosted, linux, x64]
     steps:
       - uses: actions/checkout@v2 
@@ -25,9 +51,9 @@ jobs:
       - name: Nexus IQ Policy Evaluation
         uses: sonatype-nexus-community/iq-github-action@master
         with:
-          serverUrl: https://nexus-iq.eng.trueaccord.com
-          username: jenkins_nexusiq
-          password: ${{ secrets.nexusiq_password }}
+          serverUrl: ${{ secrets.NEXUSIQ_HOST }} 
+          username: ${{ secrets.NEXUSIQ_USERNAME }} 
+          password: ${{ secrets.NEXUSIQ_PASSWORD }}
           applicationId: ${{ github.event.pull_request.head.repo.name }}
           stage: Source
           target: .
@@ -43,7 +69,7 @@ jobs:
         id: create
         uses: atlassian/gajira-create@master
         with:
-          project: INFSC
+          project: SGIT
           issuetype: Task
           summary: |
             PR Review ${{ github.event.pull_request.html_url }}
@@ -62,5 +88,5 @@ jobs:
         with:
           message: |
             :bangbang: PR ${{ github.event.pull_request.html_url }} In-Review with InfoSec team :mag: :bangbang:
-            Please watch Jira ticket [${{ steps.create.outputs.issue }}](https://trueaccord.atlassian.net/browse/${{ steps.create.outputs.issue }}) for the result.
+            Please watch Jira ticket [${{ steps.create.outputs.issue }}](${{ secrets.JIRA_BASE_URL }}/browse/${{ steps.create.outputs.issue }}) for the result.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
